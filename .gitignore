@@ -1,0 +1,7 @@
+./generator/*.dat
+./generator/*.runno
+./generator/CMakeFiles/*
+./generator/CMakeCache.txt
+./generator/cmake_install.cmake
+./generator/Makefile
+*.swp

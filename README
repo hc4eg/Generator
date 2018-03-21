@@ -1,0 +1,73 @@
+This directory contains files for generating events for
+the BetheHeitler pair production spectrometer GEANT4 simulation.
+
+Code has been tested on a 64 bit machine running
+CentOS 7 using  
+gcc (GCC) 4.8.5 20150623 (Red Hat 4.8.5-11)
+Generating 250000 events takes about 24 hours.
+So using the 4 cores on my machine I can generate about
+a million events every 24 hours.
+
+
+It contains two parts:
+1) The library for calculating the cross sections.
+2) The code for generating event file for input to the simulation.
+
+1) The library is in the directory BH_cross_sections
+This is based on code provided by milstein alexander <milsteinsasha@yandex.ru>
+
+To build:
+> cd BH_cross_sections
+> cmake .
+> make
+> cd ..
+
+The library libBH_cross_sections.so should remain in the
+directory BH_cross_sections.
+
+2) The event generator code is in the directory generator.
+
+To build:
+> cd generator
+> cmake .
+> make
+
+The code name "generate" will be produced.
+
+To run the code type:
+> generate <events>
+
+where <events> is the number of events you want it to generate.
+
+Each time generate is run it produces a unique set of output file
+labeled with a run number.
+
+The file "events.run001.dat" is the events in the format expected
+by the GEANT4 simulation, one event per line.
+
+The file "output.run001.dat" is a running status of the run.
+At the beginning is a list of the run parameters.
+The a status line is written and every N events are generated
+indicating how long it has taken and other info.
+N is currently set to 1000.
+This file should be scanned for any lines such as...
+Cross Section = 4.3603056e-06 > maximum cross section = 4e-06
+This would indicate that the maximum cross section variable in the
+code is set too low. Any events generate by such a run should be
+discarded as unreliable.
+The variable to change in generate.cpp is "maximum_xsec".
+Currently it is set to 5.e-6 which seem appropriate for
+the minimum polar angle of 4 degrees.
+Setting maximum_xsec too high will significantly increase the time
+needed to generate events.
+
+Each time generate is run it increments the run number
+which is stored in the file "events.runno". If you want
+run several generate instances, starting in the same directory, they
+should be started sequentially (so the number in events.runno
+is incremented before the next generate starts running).
+
+All files written by an instance of generate are written to the 
+directory in which it is started.
+
+
