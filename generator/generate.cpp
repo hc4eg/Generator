@@ -165,12 +165,15 @@ int main(int argc, char *argv[])
 		e_p = ke_p + m_e;
 		// solve for allowed positron energy
 		double e_q = solve_e_positron(e_gamma, m_e, m_r, e_p, th_p, th_q, phi_q);
-		double e_q_pos = solve_e_pos(e_gamma, m_e, m_r, e_p, th_p, th_q, phi_q);
+		//double e_q_pos = solve_e_pos(e_gamma, m_e, m_r, e_p, th_p, th_q, phi_q);
 		// Print and compare results of 2 different ways of solving e_q
 		//cerr << "e_q = " << e_q << ", e_q_pos = " << e_q_pos << ". Error " << abs((e_q*100.-e_q_pos*100.)/e_q) << "%" << endl;
+		//cerr << "e_q = " << e_q << ", e_q_pos = " << e_q_pos << ". Error " << abs(e_q-e_q_pos) << "MeV" << endl;
 			
 		// calculate the cross section
 		double xsec = xs->xsec_full(e_p, e_q, th_p, th_q, phi_q);	
+		//double xsec = xs->xsec_full(e_p, e_q_pos, th_p, th_q, phi_q);	
+		
 
 
 		// Below can be commented: comparing result using computed e_q or just e_gamma-e_p (regard ke_r = 0)
@@ -264,7 +267,7 @@ solve_e_positron(double e_gamma, double m_e, double m_r,
 		old_diff = diff;
 		N_itr++;
 		}
-	cerr << "1st method, N = " << N_itr << ".  ";
+	//cerr << "1st method, N = " << N_itr << ".  ";
 	return(e_q);
 }
 
@@ -274,7 +277,6 @@ double solve_e_pos(double e_gamma, double m_e, double m_r,
 {
 	//e_q[2]: boundaries of guess e_q values
 	double e_q[2] = { e_gamma-e_p-1.0, e_gamma-e_p };
-	//minke:
 	double minke = 1.0e-7;
 	double ke_r[2];
 	double val[2];
@@ -286,17 +288,21 @@ double solve_e_pos(double e_gamma, double m_e, double m_r,
 	double val_next = val[0];
 	double e_q_next, ke_next;
 	int N_itr = 0;
-	while( (e_q[1]-e_q[0]) > minke && val_next*val[0]*val[1]!=0 ){
+	//while( fabs(e_q[1]-e_q[0]) > minke && val_next*val[0]*val[1]!=0 ){
+	while( fabs(ke_r[1]-ke_r[0]) > minke && val_next*val[0]*val[1]!=0 ){
 		e_q_next = ( e_q[1]+e_q[0] )/2.;
 		ke_next = ke_recoil(e_gamma, e_p, e_q_next, m_e, m_r, th_p, th_q, phi);
 		val_next = e_gamma- e_p -e_q_next- ke_next;
 		if(val_next*val[0] > 0 && val_next*val[1] < 0 ){
 			e_q[0] = e_q_next;
-			ke_r[0] = ke_next;
+			ke_r[0] = e_q_next;
 		}
 		else if (val_next*val[0] < 0 && val_next*val[1] > 0 ){
 			e_q[1] = e_q_next;
-			ke_r[1] = ke_next;
+			ke_r[1] = e_q_next;
+		}
+		else if(val_next==0){
+			return e_q_next;
 		}
 		else{
 			cerr << "Solve e_q error. " << endl;
@@ -305,8 +311,8 @@ double solve_e_pos(double e_gamma, double m_e, double m_r,
 		}
 		N_itr++;
 	}
-	cerr << "2nd method, N = " << N_itr << endl;
-	return e_q[1];
+	//cerr << "2nd method, N = " << N_itr << endl;
+	return e_q_next;
 }
 
 double ke_recoil(double e_gamma, double e_p, double e_q, double m_e, double m_r,
