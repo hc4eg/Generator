@@ -9,21 +9,13 @@
 #include <sstream>
 using namespace std;
 //solve positron energy
-double solve_e_positron(double e_gamma, double m_e, double m_r,
+inline double solve_e_positron(double e_gamma, double m_e, double m_r,
 	double e_p, double th_p, double th_q, double phi_q);
-
-//2nd method of solving positron energy
-double solve_e_pos(double e_gamma, double m_e, double m_r,
-	double e_p, double th_p, double th_q, double phi_q);
-
 //From all the parameter values, compute recoil nucleus kinetic energy
-double ke_recoil(double e_gamma, double e_p, double e_q, double m_e, double m_r,
+inline double ke_recoil(double e_gamma, double e_p, double e_q, double m_e, double m_r,
 	double th_p, double th_q, double phi_q);
-
 //Generate random number in [0,1]
-double randfloat(void);
-//double RandGaussian(double s);
-//vector<string> split(string str, char delimiter);
+inline double randfloat(void);
 
 int main(int argc, char *argv[])
 {
@@ -119,8 +111,6 @@ int main(int argc, char *argv[])
 	fprintf(stdfp, "Maximum Expected Cross Section = %.2g\n", maximum_xsec);
 	fflush(stdfp);
 
-	double max_e_p, max_e_q, max_th_p, max_th_q, max_phi_q;
-
 	int found_in_last = 0;
 	long loops = 0;
 	long starttime = time(NULL);
@@ -165,29 +155,10 @@ int main(int argc, char *argv[])
 		e_p = ke_p + m_e;
 		// solve for allowed positron energy
 		double e_q = solve_e_positron(e_gamma, m_e, m_r, e_p, th_p, th_q, phi_q);
-		//double e_q_pos = solve_e_pos(e_gamma, m_e, m_r, e_p, th_p, th_q, phi_q);
-		// Print and compare results of 2 different ways of solving e_q
-		//cerr << "e_q = " << e_q << ", e_q_pos = " << e_q_pos << ". Error " << abs((e_q*100.-e_q_pos*100.)/e_q) << "%" << endl;
-		//cerr << "e_q = " << e_q << ", e_q_pos = " << e_q_pos << ". Error " << abs(e_q-e_q_pos) << "MeV" << endl;
-			
+		
 		// calculate the cross section
 		double xsec = xs->xsec_full(e_p, e_q, th_p, th_q, phi_q);	
-		//double xsec = xs->xsec_full(e_p, e_q_pos, th_p, th_q, phi_q);	
-		
 
-
-		// Below can be commented: comparing result using computed e_q or just e_gamma-e_p (regard ke_r = 0)
-		//
-		// calculate the cross section by using e_q = e_gamma-e_p
-		double xsec_p = xs->xsec_full(e_p, e_gamma-e_p, th_p, th_q, phi_q);
-		double xsec_err = abs((xsec-xsec_p)/xsec); 
-		//cerr << "xsec = " << xsec << ", xsec_p = " << xsec_p  << ". Relative Error " << abs((xsec-xsec_p)*100./xsec) << "(%)" << endl;
-		//
-
-
-		if( xsec_err> 1e-4)
-			cerr << "Xsec error exceed limit 10-4, is  " << xsec_err << endl;
-		//fp << phi_q/deg << endl;
 		double ratio = xsec/maximum_xsec;
 		if(ratio > 1.)
 			{
@@ -267,52 +238,7 @@ solve_e_positron(double e_gamma, double m_e, double m_r,
 		old_diff = diff;
 		N_itr++;
 		}
-	//cerr << "1st method, N = " << N_itr << ".  ";
 	return(e_q);
-}
-
-
-double solve_e_pos(double e_gamma, double m_e, double m_r,
-	double e_p, double th_p, double th_q, double phi)
-{
-	//e_q[2]: boundaries of guess e_q values
-	double e_q[2] = { e_gamma-e_p-1.0, e_gamma-e_p };
-	double minke = 1.0e-7;
-	double ke_r[2];
-	double val[2];
-	for(int i = 0; i < 2; i++){
-		ke_r[i] = ke_recoil(e_gamma,e_p,e_q[i],m_e,m_r,th_p,th_q,phi);
-		val[i] = e_gamma-e_p-e_q[i]-ke_r[i];
-	}
-	// Initial value for 1st check
-	double val_next = val[0];
-	double e_q_next, ke_next;
-	int N_itr = 0;
-	//while( fabs(e_q[1]-e_q[0]) > minke && val_next*val[0]*val[1]!=0 ){
-	while( fabs(ke_r[1]-ke_r[0]) > minke && val_next*val[0]*val[1]!=0 ){
-		e_q_next = ( e_q[1]+e_q[0] )/2.;
-		ke_next = ke_recoil(e_gamma, e_p, e_q_next, m_e, m_r, th_p, th_q, phi);
-		val_next = e_gamma- e_p -e_q_next- ke_next;
-		if(val_next*val[0] > 0 && val_next*val[1] < 0 ){
-			e_q[0] = e_q_next;
-			ke_r[0] = e_q_next;
-		}
-		else if (val_next*val[0] < 0 && val_next*val[1] > 0 ){
-			e_q[1] = e_q_next;
-			ke_r[1] = e_q_next;
-		}
-		else if(val_next==0){
-			return e_q_next;
-		}
-		else{
-			cerr << "Solve e_q error. " << endl;
-			return -1;
-			break;
-		}
-		N_itr++;
-	}
-	//cerr << "2nd method, N = " << N_itr << endl;
-	return e_q_next;
 }
 
 double ke_recoil(double e_gamma, double e_p, double e_q, double m_e, double m_r,
@@ -352,43 +278,3 @@ double randfloat(void)
 	double r = random()/double(RAND_MAX);
 	return r;
 	}
-/*
-#include <limits>
-double RandGaussian(double sigma)
-{
-	const double epsilon = std::numeric_limits<double>::min();
-	const double two_pi = 2.0*3.14159265358979323846;
-
-	static double z0, z1;
-	static bool generate;
-	if(sigma == 0.) return(0.);
-	generate = !generate;
-
-	if (!generate)
-	   return z1 * sigma;
-
-	double u1, u2;
-	do
-	 {
-	   u1 = randfloat();
-	   u2 = randfloat();
-	 }
-	while ( u1 <= epsilon );
-	double A = sqrt(-2.0 * log(u1));
-	z0 = A * cos(two_pi * u2);
-	z1 = A * sin(two_pi * u2);
-	return z0 * sigma;
-}
-
-vector<string> split(string str, char delimiter) {
-  vector<string> internal;
-  stringstream ss(str); // Turn the string into a stream.
-  string tok;
-  
-  while(getline(ss, tok, delimiter)) {
-    internal.push_back(tok);
-  }
-  
-  return internal;
-}
-*/
