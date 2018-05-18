@@ -9,19 +9,19 @@
 #include <sstream>
 using namespace std;
 //solve positron energy
-double solve_e_positron(double e_gamma, double m_e, double m_r,
+inline double solve_e_positron(double e_gamma, double m_e, double m_r,
 	double e_p, double th_p, double th_q, double phi_q);
 
 //2nd method of solving positron energy
-double solve_e_pos(double e_gamma, double m_e, double m_r,
+inline double solve_e_pos(double e_gamma, double m_e, double m_r,
 	double e_p, double th_p, double th_q, double phi_q);
 
 //From all the parameter values, compute recoil nucleus kinetic energy
-double ke_recoil(double e_gamma, double e_p, double e_q, double m_e, double m_r,
+inline double ke_recoil(double e_gamma, double e_p, double e_q, double m_e, double m_r,
 	double th_p, double th_q, double phi_q);
 
 //Generate random number in [0,1]
-double randfloat(void);
+inline double randfloat(void);
 //double RandGaussian(double s);
 //vector<string> split(string str, char delimiter);
 
@@ -119,7 +119,7 @@ int main(int argc, char *argv[])
 	fprintf(stdfp, "Maximum Expected Cross Section = %.2g\n", maximum_xsec);
 	fflush(stdfp);
 
-	double max_e_p, max_e_q, max_th_p, max_th_q, max_phi_q;
+	//double max_e_p, max_e_q, max_th_p, max_th_q, max_phi_q;
 
 	int found_in_last = 0;
 	long loops = 0;
@@ -164,37 +164,41 @@ int main(int argc, char *argv[])
 		double ke_p = min_eng + (max_eng-min_eng)*randfloat();
 		e_p = ke_p + m_e;
 		// solve for allowed positron energy
+		// comparing both solve_e_q method
 		double e_q = solve_e_positron(e_gamma, m_e, m_r, e_p, th_p, th_q, phi_q);
-		//double e_q_pos = solve_e_pos(e_gamma, m_e, m_r, e_p, th_p, th_q, phi_q);
+		double e_q_pos = solve_e_pos(e_gamma, m_e, m_r, e_p, th_p, th_q, phi_q);
+		if( abs((e_q*100.-e_q_pos*100.)/e_q) > 1e-4)
+			cerr << "Relative error of 2 methods larger than 10^-4%, is " <<   abs((e_q*100.-e_q_pos*100.)/e_q) << "%" << endl;
 		// Print and compare results of 2 different ways of solving e_q
 		//cerr << "e_q = " << e_q << ", e_q_pos = " << e_q_pos << ". Error " << abs((e_q*100.-e_q_pos*100.)/e_q) << "%" << endl;
 		//cerr << "e_q = " << e_q << ", e_q_pos = " << e_q_pos << ". Error " << abs(e_q-e_q_pos) << "MeV" << endl;
 			
 		// calculate the cross section
-		double xsec = xs->xsec_full(e_p, e_q, th_p, th_q, phi_q);	
-		//double xsec = xs->xsec_full(e_p, e_q_pos, th_p, th_q, phi_q);	
+		// Use 1st solve positron method
+		//double xsec = xs->xsec_full(e_p, e_q, th_p, th_q, phi_q);
+		// Use 2nd solve positron method
+		double xsec = xs->xsec_full(e_p, e_q_pos, th_p, th_q, phi_q);
 		
-
-
-		// Below can be commented: comparing result using computed e_q or just e_gamma-e_p (regard ke_r = 0)
-		//
+		// Below can be commented: comparing result using computed e_q or just e_gamma-e_p (treat ke_r = 0)
 		// calculate the cross section by using e_q = e_gamma-e_p
 		double xsec_p = xs->xsec_full(e_p, e_gamma-e_p, th_p, th_q, phi_q);
 		double xsec_err = abs((xsec-xsec_p)/xsec); 
-		//cerr << "xsec = " << xsec << ", xsec_p = " << xsec_p  << ". Relative Error " << abs((xsec-xsec_p)*100./xsec) << "(%)" << endl;
-		//
+		//if(xsec_err > 1e-4)
+		//	cerr << "xsec = " << xsec << ", xsec_p = " << xsec_p  << ". Relative Error " << scientific << abs((xsec-xsec_p)*100./xsec) << "(%)" << endl;
 
-
-		if( xsec_err> 1e-4)
-			cerr << "Xsec error exceed limit 10-4, is  " << xsec_err << endl;
+		if( xsec_err> 1e-4){
+			cerr << "Xsec error exceed limit 10-4, xsec = " << xsec << ", xsec_p = " << xsec_p  << ". Relative Error " << abs((xsec-xsec_p)*100./xsec) << "(%)" << endl;
+			cerr << "e_q = " << e_q << ", e_q_pos = " << e_q_pos << ", e_gamma-e_p = " << e_gamma-e_p << ", difference is " << fabs(e_q_pos+e_p-e_gamma) << "MeV." << endl;
+		}
 		//fp << phi_q/deg << endl;
 		double ratio = xsec/maximum_xsec;
 		if(ratio > 1.)
 			{
-			fprintf(stdfp, "Cross Section = %.8g > maximum cross section = %.8g\n", xsec, maximum_xsec);
-			maximum_xsec = xsec;
-			fflush(fp);
-			fflush(stdfp);
+				fprintf(stdfp, "Cross Section = %.8g > maximum cross section = %.8g\n", xsec, maximum_xsec);
+				maximum_xsec = xsec;
+				fflush(fp);
+				fflush(stdfp);
+				//Q: Then how to deal with data before change of maximum_xsec?
 			}
 		if( randfloat() > ratio) continue;
 
@@ -224,6 +228,8 @@ int main(int argc, char *argv[])
 	long seconds = now - starttime;
 	fprintf(stdfp, "Run time = %d sec\n", seconds);
 	fclose(stdfp);
+	//cerr << "RAND_MAX = " << RAND_MAX << endl;
+	//cerr << "1/RAND_MAX = " << scientific << 1/(double)RAND_MAX << endl;
 }
 
 double
@@ -288,18 +294,18 @@ double solve_e_pos(double e_gamma, double m_e, double m_r,
 	double val_next = val[0];
 	double e_q_next, ke_next;
 	int N_itr = 0;
-	//while( fabs(e_q[1]-e_q[0]) > minke && val_next*val[0]*val[1]!=0 ){
-	while( fabs(ke_r[1]-ke_r[0]) > minke && val_next*val[0]*val[1]!=0 ){
+	while( fabs(e_q[1]-e_q[0]) > minke && val_next*val[0]*val[1]!=0 ){
+	//while( fabs(ke_r[1]-ke_r[0]) > minke && val_next*val[0]*val[1]!=0 ){
 		e_q_next = ( e_q[1]+e_q[0] )/2.;
 		ke_next = ke_recoil(e_gamma, e_p, e_q_next, m_e, m_r, th_p, th_q, phi);
 		val_next = e_gamma- e_p -e_q_next- ke_next;
 		if(val_next*val[0] > 0 && val_next*val[1] < 0 ){
 			e_q[0] = e_q_next;
-			ke_r[0] = e_q_next;
+			//ke_r[0] = ke_next;
 		}
 		else if (val_next*val[0] < 0 && val_next*val[1] > 0 ){
 			e_q[1] = e_q_next;
-			ke_r[1] = e_q_next;
+			//ke_r[1] = ke_next;
 		}
 		else if(val_next==0){
 			return e_q_next;
