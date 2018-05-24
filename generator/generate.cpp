@@ -7,6 +7,7 @@
 #include <vector>
 #include <string>
 #include <sstream>
+#include <cmath>
 using namespace std;
 //solve positron energy
 inline double solve_e_positron(double e_gamma, double m_e, double m_r,
@@ -27,6 +28,12 @@ inline double randfloat(void);
 
 int main(int argc, char *argv[])
 {
+
+	int count = 0;
+	int d_count = 0;
+	int e_count = 0;
+
+
 	double pi=3.14159265358979323846264338;
 	//If value is X(degrees), the X*deg is in unit rad, thus can be used for trigonometric functions
 	double deg = pi/180.;
@@ -167,12 +174,20 @@ int main(int argc, char *argv[])
 		// comparing both solve_e_q method
 		double e_q = solve_e_positron(e_gamma, m_e, m_r, e_p, th_p, th_q, phi_q);
 		double e_q_pos = solve_e_pos(e_gamma, m_e, m_r, e_p, th_p, th_q, phi_q);
-		if( abs((e_q*100.-e_q_pos*100.)/e_q) > 1e-6)
-		//	cerr << "Relative error of 2 methods larger than 10^-6%, is " <<   abs((e_q*100.-e_q_pos*100.)/e_q) << "%" << endl;
-		// Print and compare results of 2 different ways of solving e_q
-		//cerr << "e_q = " << e_q << ", e_q_pos = " << e_q_pos << ". Error " << abs((e_q*100.-e_q_pos*100.)/e_q) << "%" << endl;
-		cerr << "e_q = " << e_q << ", e_q_pos = " << e_q_pos << ". Error " << e_q-e_q_pos << "MeV" << endl;
-			
+
+			if( abs((e_q*100.-e_q_pos*100.)/e_q) > 1e-6){
+				//	cerr << "Relative error of 2 methods larger than 10^-6%, is " <<   abs((e_q*100.-e_q_pos*100.)/e_q) << "%" << endl;
+				// Print and compare results of 2 different ways of solving e_q
+				//cerr << "e_q = " << e_q << ", e_q_pos = " << e_q_pos << ". Error " << abs((e_q*100.-e_q_pos*100.)/e_q) << "%" << endl;
+				//cerr << "e_q = " << e_q << ", e_q_pos = " << e_q_pos << ". Error " << e_q-e_q_pos << "MeV" << endl;
+				d_count++;
+				for(double i = 1 ; i <=40; i++){
+					//cerr << "Diff = "<<fabs(e_q-e_q_pos) << "(MeV), and pow(2,i)= " << 1./pow(2.,i) << endl;
+					if( fabs( fabs(e_q-e_q_pos)-(1./pow(2.,i))) < (1./pow(2.,i))/50. ) { e_count++; break; }
+				}
+			}
+				count++;
+
 		// calculate the cross section
 		// Use 1st solve positron method
 		//double xsec = xs->xsec_full(e_p, e_q, th_p, th_q, phi_q);
@@ -186,10 +201,12 @@ int main(int argc, char *argv[])
 		//if(xsec_err > 1e-4)
 		//	cerr << "xsec = " << xsec << ", xsec_p = " << xsec_p  << ". Relative Error " << scientific << abs((xsec-xsec_p)*100./xsec) << "(%)" << endl;
 
+		/*
 		if( xsec_err> 1e-4){
 			cerr << "Xsec error exceed limit 10-4, xsec = " << xsec << ", xsec_p = " << xsec_p  << ". Relative Error " << abs((xsec-xsec_p)*100./xsec) << "(%)" << endl;
 			cerr << "e_q = " << e_q << ", e_q_pos = " << e_q_pos << ", e_gamma-e_p = " << e_gamma-e_p << ", difference is " << fabs(e_q_pos+e_p-e_gamma) << "MeV." << endl;
 		}
+		*/
 		//fp << phi_q/deg << endl;
 		double ratio = xsec/maximum_xsec;
 		if(ratio > 1.)
@@ -230,6 +247,8 @@ int main(int argc, char *argv[])
 	fclose(stdfp);
 	//cerr << "RAND_MAX = " << RAND_MAX << endl;
 	//cerr << "1/RAND_MAX = " << scientific << 1/(double)RAND_MAX << endl;
+	cerr << "count = " << count << ", solve 2 difference count = " << d_count << ", portion = " << (double)d_count/(double)count << endl;
+	cerr << "portion of difference == 1/2^n is " << (double)e_count/(double)count << endl;
 }
 
 double
