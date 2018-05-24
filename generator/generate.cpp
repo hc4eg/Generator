@@ -7,12 +7,7 @@
 #include <vector>
 #include <string>
 #include <sstream>
-#include <cmath>
 using namespace std;
-//solve positron energy
-inline double solve_e_positron(double e_gamma, double m_e, double m_r,
-	double e_p, double th_p, double th_q, double phi_q);
-
 //2nd method of solving positron energy
 inline double solve_e_pos(double e_gamma, double m_e, double m_r,
 	double e_p, double th_p, double th_q, double phi_q);
@@ -23,17 +18,9 @@ inline double ke_recoil(double e_gamma, double e_p, double e_q, double m_e, doub
 
 //Generate random number in [0,1]
 inline double randfloat(void);
-//double RandGaussian(double s);
-//vector<string> split(string str, char delimiter);
 
 int main(int argc, char *argv[])
 {
-
-	int count = 0;
-	int d_count = 0;
-	int e_count = 0;
-
-
 	double pi=3.14159265358979323846264338;
 	//If value is X(degrees), the X*deg is in unit rad, thus can be used for trigonometric functions
 	double deg = pi/180.;
@@ -126,8 +113,6 @@ int main(int argc, char *argv[])
 	fprintf(stdfp, "Maximum Expected Cross Section = %.2g\n", maximum_xsec);
 	fflush(stdfp);
 
-	//double max_e_p, max_e_q, max_th_p, max_th_q, max_phi_q;
-
 	int found_in_last = 0;
 	long loops = 0;
 	long starttime = time(NULL);
@@ -172,42 +157,10 @@ int main(int argc, char *argv[])
 		e_p = ke_p + m_e;
 		// solve for allowed positron energy
 		// comparing both solve_e_q method
-		double e_q = solve_e_positron(e_gamma, m_e, m_r, e_p, th_p, th_q, phi_q);
-		double e_q_pos = solve_e_pos(e_gamma, m_e, m_r, e_p, th_p, th_q, phi_q);
-
-			if( abs((e_q*100.-e_q_pos*100.)/e_q) > 1e-6){
-				//	cerr << "Relative error of 2 methods larger than 10^-6%, is " <<   abs((e_q*100.-e_q_pos*100.)/e_q) << "%" << endl;
-				// Print and compare results of 2 different ways of solving e_q
-				//cerr << "e_q = " << e_q << ", e_q_pos = " << e_q_pos << ". Error " << abs((e_q*100.-e_q_pos*100.)/e_q) << "%" << endl;
-				//cerr << "e_q = " << e_q << ", e_q_pos = " << e_q_pos << ". Error " << e_q-e_q_pos << "MeV" << endl;
-				d_count++;
-				for(double i = 1 ; i <=40; i++){
-					//cerr << "Diff = "<<fabs(e_q-e_q_pos) << "(MeV), and pow(2,i)= " << 1./pow(2.,i) << endl;
-					if( fabs( fabs(e_q-e_q_pos)-(1./pow(2.,i))) < (1./pow(2.,i))/50. ) { e_count++; break; }
-				}
-			}
-				count++;
-
+		e_q = solve_e_pos(e_gamma, m_e, m_r, e_p, th_p, th_q, phi_q);
 		// calculate the cross section
-		// Use 1st solve positron method
-		//double xsec = xs->xsec_full(e_p, e_q, th_p, th_q, phi_q);
 		// Use 2nd solve positron method
-		double xsec = xs->xsec_full(e_p, e_q_pos, th_p, th_q, phi_q);
-		
-		// Below can be commented: comparing result using computed e_q or just e_gamma-e_p (treat ke_r = 0)
-		// calculate the cross section by using e_q = e_gamma-e_p
-		double xsec_p = xs->xsec_full(e_p, e_gamma-e_p, th_p, th_q, phi_q);
-		double xsec_err = abs((xsec-xsec_p)/xsec); 
-		//if(xsec_err > 1e-4)
-		//	cerr << "xsec = " << xsec << ", xsec_p = " << xsec_p  << ". Relative Error " << scientific << abs((xsec-xsec_p)*100./xsec) << "(%)" << endl;
-
-		/*
-		if( xsec_err> 1e-4){
-			cerr << "Xsec error exceed limit 10-4, xsec = " << xsec << ", xsec_p = " << xsec_p  << ". Relative Error " << abs((xsec-xsec_p)*100./xsec) << "(%)" << endl;
-			cerr << "e_q = " << e_q << ", e_q_pos = " << e_q_pos << ", e_gamma-e_p = " << e_gamma-e_p << ", difference is " << fabs(e_q_pos+e_p-e_gamma) << "MeV." << endl;
-		}
-		*/
-		//fp << phi_q/deg << endl;
+		double xsec = xs->xsec_full(e_p, e_q, th_p, th_q, phi_q);
 		double ratio = xsec/maximum_xsec;
 		if(ratio > 1.)
 			{
@@ -245,57 +198,7 @@ int main(int argc, char *argv[])
 	long seconds = now - starttime;
 	fprintf(stdfp, "Run time = %d sec\n", seconds);
 	fclose(stdfp);
-	//cerr << "RAND_MAX = " << RAND_MAX << endl;
-	//cerr << "1/RAND_MAX = " << scientific << 1/(double)RAND_MAX << endl;
-	cerr << "count = " << count << ", solve 2 difference count = " << d_count << ", portion = " << (double)d_count/(double)count << endl;
-	cerr << "portion of difference == 1/2^n is " << (double)e_count/(double)count << endl;
 }
-
-double
-solve_e_positron(double e_gamma, double m_e, double m_r,
-	double e_p, double th_p, double th_q, double phi_q)
-{
-	// solve for allowed positron energy
-	double ke_r = 0.1; // first guess
-	double e_q = e_gamma - e_p - ke_r;
-	// solve for actual ke_r and hence actual e_q
-	double tol = 1.0e-7;
-	double diff;
-	double step = 0.01;
-	// first guess
-	double ke_r_cal = ke_recoil(e_gamma, e_p, e_q, m_e, m_r, th_p, th_q, phi_q);
-	double old_diff = ke_r - ke_r_cal;
-	//cout << "th_p_deg = " << th_p_deg << " delta = " << delta << endl;
-
-	int N_itr = 0;
-	while(1)
-		{
-		ke_r += step;
-		e_q = e_gamma - e_p - ke_r;
-		ke_r_cal = ke_recoil(e_gamma, e_p, e_q, m_e, m_r, th_p, th_q, phi_q);
-		diff = ke_r - ke_r_cal;
-		if(fabs(diff) < tol) break;
-		if( diff*old_diff > 0.)
-			{
-			// same sign
-			if(fabs(diff) > fabs(old_diff))
-				{
-				// we are going in the wrong direction
-				step = -step;
-				}
-			}
-		else
-			{
-			// we passed through the solution
-			step = -step/2.;
-			}
-		old_diff = diff;
-		N_itr++;
-		}
-	//cerr << "1st method, N = " << N_itr << ".  ";
-	return(e_q);
-}
-
 
 double solve_e_pos(double e_gamma, double m_e, double m_r,
 	double e_p, double th_p, double th_q, double phi)
@@ -313,19 +216,15 @@ double solve_e_pos(double e_gamma, double m_e, double m_r,
 	double val_next = val[0];
 	double e_q_next, ke_next;
 	int N_itr = 0;
-	//while( fabs(e_q[1]-e_q[0]) > minke && val_next*val[0]*val[1]!=0 ){
-	//Q: why use ke_r[0,1] to solve equation will cause 1/(2^n) difference to 1st method?
-	while( fabs(ke_r[1]-ke_r[0]) > minke && val_next*val[0]*val[1]!=0 ){
+	while( fabs(e_q[1]-e_q[0]) > minke && val_next*val[0]*val[1]!=0 ){
 		e_q_next = ( e_q[1]+e_q[0] )/2.;
 		ke_next = ke_recoil(e_gamma, e_p, e_q_next, m_e, m_r, th_p, th_q, phi);
 		val_next = e_gamma- e_p -e_q_next- ke_next;
 		if(val_next*val[0] > 0 && val_next*val[1] < 0 ){
 			e_q[0] = e_q_next;
-			ke_r[0] = ke_next;
 		}
 		else if (val_next*val[0] < 0 && val_next*val[1] > 0 ){
 			e_q[1] = e_q_next;
-			ke_r[1] = ke_next;
 		}
 		else if(val_next==0){
 			return e_q_next;
@@ -337,19 +236,12 @@ double solve_e_pos(double e_gamma, double m_e, double m_r,
 		}
 		N_itr++;
 	}
-	//cerr << "2nd method, N = " << N_itr << endl;
 	return e_q_next;
 }
 
 double ke_recoil(double e_gamma, double e_p, double e_q, double m_e, double m_r,
 	double th_p, double th_q, double phi_q)
 	{
-	//if(e_gamma - e_p - e_q < 0.) {
-	//	printf("E_gamma = %.2f E_p = %.2f E_q = %.2f\n",e_gamma, e_p, e_q);
-	//	return -1.;
-	//	}
-	//if(e_p < m_e) return -1.;
-	//if(e_q < m_e) return -1.;
 	double p_p = sqrt(e_p*e_p - m_e*m_e);
 	double p_q = sqrt(e_q*e_q - m_e*m_e);
 	double p_p_x = p_p * sin(th_p);
@@ -362,13 +254,6 @@ double ke_recoil(double e_gamma, double e_p, double e_q, double m_e, double m_r,
 	double p_r_x = -(p_p_x + p_q_x);
 	double p_r_y = -(p_p_y + p_q_y);
 	double p_r_2 = p_r_x*p_r_x + p_r_y*p_r_y + p_r_z*p_r_z;
-//	double p_r = sqrt(p_r_2);
-//	printf("Electron Momentum = %f\n", p_p);
-//	printf("  (x,y,z) = (%f,%f,%f)\n", p_p_x, p_p_y, p_p_z);
-//	printf("Positron Momentum = %f\n", p_q);
-//	printf("  (x,y,z) = (%f,%f,%f)\n", p_q_x, p_q_y, p_q_z);
-//	printf("Recoil Momentum = %f\n", p_r);
-//	printf("  (x,y,z) = (%f,%f,%f)\n", p_r_x, p_r_y, p_r_z);
 	double ke_r = sqrt(p_r_2 + m_r*m_r) - m_r;	
 	return(ke_r);
 	}
@@ -378,43 +263,3 @@ double randfloat(void)
 	double r = random()/double(RAND_MAX);
 	return r;
 	}
-/*
-#include <limits>
-double RandGaussian(double sigma)
-{
-	const double epsilon = std::numeric_limits<double>::min();
-	const double two_pi = 2.0*3.14159265358979323846;
-
-	static double z0, z1;
-	static bool generate;
-	if(sigma == 0.) return(0.);
-	generate = !generate;
-
-	if (!generate)
-	   return z1 * sigma;
-
-	double u1, u2;
-	do
-	 {
-	   u1 = randfloat();
-	   u2 = randfloat();
-	 }
-	while ( u1 <= epsilon );
-	double A = sqrt(-2.0 * log(u1));
-	z0 = A * cos(two_pi * u2);
-	z1 = A * sin(two_pi * u2);
-	return z0 * sigma;
-}
-
-vector<string> split(string str, char delimiter) {
-  vector<string> internal;
-  stringstream ss(str); // Turn the string into a stream.
-  string tok;
-  
-  while(getline(ss, tok, delimiter)) {
-    internal.push_back(tok);
-  }
-  
-  return internal;
-}
-*/
