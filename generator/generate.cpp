@@ -53,8 +53,9 @@ int main(int argc, char *argv[])
 	double min_eng = central_energy * (1.+min_percent/100.);
 	// t_theta, t_phi: x and y projection angle
 	// So only pairs wihtin a rectangular projection specified by max_t_theta and max_t_phi will be computed
-	double max_t_theta = 15*deg;
-	double max_t_phi = 2.2*deg;
+	const double max_t_theta = 15*deg;
+	const double max_t_phi = 2.2*deg;
+	//const double max_t_phi = 4.*deg;
 	
 	//Random nubmer generation will generate pairs with polar angle
 	//In range [min_polar, max_polar]
