@@ -6,7 +6,10 @@
 #include <time.h>
 #include <vector>
 #include <string>
+#include <string.h>
 #include <sstream>
+
+#define MAXSTRLEN 200
 using namespace std;
 //solve positron energy
 inline double solve_e_positron(double e_gamma, double m_e, double m_r,
@@ -35,7 +38,8 @@ int main(int argc, char *argv[])
 	//phi_q: azimuthal angle difference of electron and positron
 	double th_p, th_q, delta, e_p, e_q, ke_r, phi_q;
 
-	char filename[100];
+	char filename[MAXSTRLEN];
+	char tag[MAXSTRLEN];
 
 	BH_cross_sections * xs = new BH_cross_sections(Z, e_gamma);
 
@@ -71,6 +75,10 @@ int main(int argc, char *argv[])
 	ifstream runin;
 	ofstream runout;
 	int runno = 0;
+	double t_theta_p, t_theta_q, t_phi_p, t_phi_q;
+	double phi_p_actual, phi_q_actual;
+
+/*****
 	// if the file "events.runno" exists - use its contents to determine run number
 	runin.open("events.runno");
 	if(runin.good())
@@ -90,9 +98,6 @@ int main(int argc, char *argv[])
 		cout << "Cannot open events.runno for output." << endl;
 		}
 
-	double t_theta_p, t_theta_q, t_phi_p, t_phi_q;
-	double phi_p_actual, phi_q_actual;
-
 	FILE *fp;
 	sprintf(filename, "events.run%.3d.dat",runno);
 	fp = fopen(filename, "w");
@@ -100,6 +105,20 @@ int main(int argc, char *argv[])
 	FILE *stdfp;
 	sprintf(filename, "output.run%.3d.dat",runno);
 	stdfp = fopen(filename, "w");
+*****/
+        if(argc >= 2) {
+          strncpy(tag, argv[2], MAXSTRLEN);
+        } else {
+          strncpy(tag, "0", MAXSTRLEN);
+        }
+	FILE *fp;
+	snprintf(filename, MAXSTRLEN, "events.run_%s.dat", tag);
+	fp = fopen(filename, "w");
+
+	FILE *stdfp;
+	snprintf(filename, MAXSTRLEN, "output.run_%s.dat", tag);
+	stdfp = fopen(filename, "w");
+
 
 	fprintf(stdfp, "Run %d: Events to do = %d\n", runno, events_to_do);
 	fprintf(stdfp, "Run parameters:\n");
@@ -240,6 +259,46 @@ solve_e_positron(double e_gamma, double m_e, double m_r,
 		N_itr++;
 		}
 	return(e_q);
+}
+
+double solve_e_pos(double e_gamma, double m_e, double m_r,
+	double e_p, double th_p, double th_q, double phi)
+{
+	//e_q[2]: boundaries of guess e_q values
+	double e_q[2] = { e_gamma-e_p-1.0, e_gamma-e_p };
+	//minke:
+	double minke = 1.0e-7;
+	double ke_r[2];
+	double val[2];
+	for(int i = 0; i < 2; i++){
+		ke_r[i] = ke_recoil(e_gamma,e_p,e_q[i],m_e,m_r,th_p,th_q,phi);
+		val[i] = e_gamma-e_p-e_q[i]-ke_r[i];
+	}
+	// Initial value for 1st check
+	double val_next = val[0];
+	double e_q_next, ke_next;
+	int N_itr = 0;
+	while( (e_q[1]-e_q[0]) > minke && val_next*val[0]*val[1]!=0 ){
+		e_q_next = ( e_q[1]+e_q[0] )/2.;
+		ke_next = ke_recoil(e_gamma, e_p, e_q_next, m_e, m_r, th_p, th_q, phi);
+		val_next = e_gamma- e_p -e_q_next- ke_next;
+		if(val_next*val[0] > 0 && val_next*val[1] < 0 ){
+			e_q[0] = e_q_next;
+			ke_r[0] = ke_next;
+		}
+		else if (val_next*val[0] < 0 && val_next*val[1] > 0 ){
+			e_q[1] = e_q_next;
+			ke_r[1] = ke_next;
+		}
+		else{
+			//cerr << "Solve e_q error. " << endl;
+			return -1;
+			break;
+		}
+		N_itr++;
+	}
+	//cerr << "2nd method, N = " << N_itr << endl;
+	return e_q[1];
 }
 
 double ke_recoil(double e_gamma, double e_p, double e_q, double m_e, double m_r,
