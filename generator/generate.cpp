@@ -8,6 +8,7 @@
 #include <string>
 #include <string.h>
 #include <sstream>
+#include <unistd.h>
 
 #define MAXSTRLEN 200
 using namespace std;
@@ -44,10 +45,30 @@ int main(int argc, char *argv[])
 
     BH_cross_sections *xs = new BH_cross_sections(Z, e_gamma);
 
-    srandom((unsigned int) time(NULL));
+    unsigned int seed;
+    FILE *rf = fopen("/dev/urandom", "r");
+    if(! rf ) {
+        fprintf(stderr, "Can't open /dev/urandom.\n");
+        exit(1);
+    }
+    if(fread(&seed, 1, sizeof(seed), rf) < 0) {
+        fprintf(stderr, "Random seed not initialized correctly\n");
+        exit(1);
+    }
+    fclose(rf);
+    srandom(seed);
+    strncpy(tag, "0", MAXSTRLEN);  // default tag
     long events_to_do = 1000000;
-    if (argc > 1)
+    if (argc > 1) {
         events_to_do = atoi(argv[1]);
+    }
+    if (argc > 2) {
+        strncpy(tag, argv[2], MAXSTRLEN);
+    }
+    if (argc > 3) {
+        fprintf(stderr, "Invalid argument list\n  %s <numEvents> [<unique_tag>]\n", argv[0]);
+        exit(2);
+    }
     long total_count = 0;
     long print_frequency = 1000;
 
@@ -79,11 +100,6 @@ int main(int argc, char *argv[])
     double t_theta_p, t_theta_q, t_phi_p, t_phi_q;
     double phi_p_actual, phi_q_actual;
 
-    if (argc >= 2) {
-        strncpy(tag, argv[2], MAXSTRLEN);
-    } else {
-        strncpy(tag, "0", MAXSTRLEN);
-    }
     FILE *fp;
     snprintf(filename, MAXSTRLEN, "events.run_%s.dat", tag);
     fp = fopen(filename, "w");
@@ -108,7 +124,10 @@ int main(int argc, char *argv[])
             max_polar / deg);
     fprintf(stdfp, "Maximum Expected Cross Section = %.2g\n",
             maximum_xsec);
+    fprintf(stdfp, "Random seed = %u\n", seed);
     fflush(stdfp);
+
+    double max_e_p, max_e_q, max_th_p, max_th_q, max_phi_q;
 
     int found_in_last = 0;
     long loops = 0;
