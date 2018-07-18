@@ -338,3 +338,4 @@ double randfloat(void)
     double r = random() / double (RAND_MAX);
     return r;
 }
+// vim:expandtab softtabstop=4 shiftwidth=4 tabstop=4:
