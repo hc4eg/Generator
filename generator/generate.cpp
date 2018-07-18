@@ -13,12 +13,11 @@
 using namespace std;
 //solve positron energy
 inline double solve_e_positron(double e_gamma, double m_e, double m_r,
-                               double e_p, double th_p, double th_q,
-                               double phi_q);
+                        double e_p, double th_p, double th_q,
+                        double phi_q);
 //From all the parameter values, compute recoil nucleus kinetic energy
 inline double ke_recoil(double e_gamma, double e_p, double e_q, double m_e,
-                        double m_r, double th_p, double th_q,
-                        double phi_q);
+                        double m_r, double th_p, double th_q, double phi_q);
 //Generate random number in [0,1]
 inline double randfloat(void);
 
@@ -62,7 +61,6 @@ int main(int argc, char *argv[])
     // So only pairs wihtin a rectangular projection specified by max_t_theta and max_t_phi will be computed
     const double max_t_theta = 15 * deg;
     const double max_t_phi = 2.2 * deg;
-    //const double max_t_phi = 4.*deg;
 
     //Random nubmer generation will generate pairs with polar angle
     //In range [min_polar, max_polar]
@@ -81,34 +79,6 @@ int main(int argc, char *argv[])
     double t_theta_p, t_theta_q, t_phi_p, t_phi_q;
     double phi_p_actual, phi_q_actual;
 
-/*****
-	// if the file "events.runno" exists - use its contents to determine run number
-	runin.open("events.runno");
-	if(runin.good())
-		{
-		runin>>runno;
-		runin.close();
-		}
-	runno++;
-	runout.open("events.runno", ios::trunc);
-	if(runout.good())
-		{
-		runout << runno << endl;
-		runout.close();
-		}
-	else
-		{
-		cout << "Cannot open events.runno for output." << endl;
-		}
-
-	FILE *fp;
-	sprintf(filename, "events.run%.3d.dat",runno);
-	fp = fopen(filename, "w");
-
-	FILE *stdfp;
-	sprintf(filename, "output.run%.3d.dat",runno);
-	stdfp = fopen(filename, "w");
-*****/
     if (argc >= 2) {
         strncpy(tag, argv[2], MAXSTRLEN);
     } else {
