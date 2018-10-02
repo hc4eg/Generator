@@ -13,4 +13,9 @@ generator/generate
 output.*.dat
 events.*.dat
 
+TheXsecV2/TheXsec
+data.*.dat
+para.*.dat
+
+
 *.tar.*
