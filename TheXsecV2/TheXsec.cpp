@@ -54,10 +54,10 @@ const double min_E = 0.511;
 
 // del_th: intervals of theta
 const double del_th = 1;
-const int div_phi = 90;
-const int div_E = 20;
 // div_phi: number of phi divisions over 360 degrees
+const double div_phi = 360;
 // div_E: number of Energy divisions over 60 MeV
+const double div_E = 30;
 
 //For given Theta_p, Theta_q, compute sum over Phi_p,Phi_q,E_p,E_q
 double Sum_Phi_E(double Theta_p, double Theta_q, bool cut = true);
@@ -146,9 +146,21 @@ int main(int argc, char *argv[]){
 	     << setw(10) << min_polar << setw(10) << max_polar << setw(10) << div_th << setw(20) << 
 		(max_polar)/(double)div_th << endl << endl
 	     << setw(10) << "div_phi" << setw(20) << "phi_div(degree)" <<endl
+	     << setw(10) << div_phi << setw(20) << 360./div_phi <<endl
 	     << setw(10) << "div_E" << setw(20) << "energy_div(MeV)" << endl
+	     << setw(10) << div_E << setw(20) << e_gamma/div_E << endl
 	     << setw(10) << "Cut used:" << endl;
 	of_p.close();
+	cerr << setw(10) << "min_polar" << setw(10) << "max_polar" << setw(10) << "div_th" << setw(20) << "theta_div(degree)" << endl
+	     << setw(10) << min_polar << setw(10) << max_polar << setw(10) << div_th << setw(20) << 
+		(max_polar)/(double)div_th << endl << endl
+	     << setw(10) << "div_phi" << setw(20) << "phi_div(degree)" <<endl
+	     << setw(10) << div_phi << setw(20) << 360./div_phi <<endl
+	     << setw(10) << "div_E" << setw(20) << "energy_div(MeV)" << endl
+	     << setw(10) << div_E << setw(20) << e_gamma/div_E << endl
+	     << setw(10) << "Cut used:" << endl;
+	
+	cerr << "para.run.dat file closed." << endl;
 
 	// open file storing data
 	// format for each line: theta_p(degree) , theta_q(degree) , Sum_Phi_E(theta_p, theta_q)
@@ -262,8 +274,8 @@ double Sum_Phi_E(double th_p, double th_q, bool cut){
 	double sum = 0;
 	BH_cross_sections *xs = new BH_cross_sections(Z, e_gamma);
 
-	for(int i = 0; i < div_phi; i++){
-		for(int j = 0; j < div_phi; j++){
+	for(int i = 0; i < (int)div_phi; i++){
+		for(int j = 0; j < (int)div_phi; j++){
 			phi_p = i*del_phi + del_phi/2.;
 			phi_q = j*del_phi + del_phi/2.;
 			phi = phi_p - phi_q;
@@ -311,6 +323,8 @@ bool Cut(double th[2], double phi[2]){
 	}
 
 	bool cut =  c_polar && c_xy[0] && c_xy[1];
+
+	/*
 	cerr << "In function Cut(): " << endl 
 	     << "c_min_polar = " <<  c_min_polar << endl
 	     << "th[0] = " << RToD(th[0]) << ", phi[0] = " << RToD(phi[0]) << endl
@@ -319,5 +333,6 @@ bool Cut(double th[2], double phi[2]){
 	     << "t_x[0] = " << t_x[0] << ", t_y[0] = " << t_y[0] << endl
 	     << "t_x[1] = " << t_x[1] << ", t_y[1] = " << t_y[1] << endl
 	     << "Thus cut = " << cut;
+	*/
 	return cut;
 }
