@@ -60,7 +60,7 @@ const double div_phi = 360;
 const double div_E = 30;
 
 //For given Theta_p, Theta_q, compute sum over Phi_p,Phi_q,E_p,E_q
-double Sum_Phi_E(double Theta_p, double Theta_q, bool cut = true);
+double Sum_Phi_E(double Theta_p, double Theta_q, bool cut = false);
 
 //Parameters relates to cut
 // c_min_polar: theta_p/theta_q smaller than c_min_polar will be ignored
@@ -69,7 +69,9 @@ const double c_min_polar = 6;
 const double c_max_t_th = 15;
 // c_max_t_phi: t_phi_p/q (vertical projection angle) larger than c_max_phi will be ignored
 const double c_max_t_phi = 2.2;
-// Apply cuts for Sum_Phi_E()
+
+// Cut(): Apply cuts for Sum_Phi_E() that only certain region of(theta_p/q, phi_p/q) will be 
+// contained in cross section computation
 // Note: 1. Input takes rad unit angles
 // 	 2. Caution when pick phi division, 
 //          such that there is no big chuck 
@@ -176,8 +178,13 @@ int main(int argc, char *argv[]){
 	// Total cross section
 	double xsec=0;
 
-	//double sum0 = Sum_Phi_E(th[0],th[0])*sin(th[0])*DToR(del_th)*sin(th[0])*DToR(del_th);
-	double sum0 = 1*sin(th[0])*DToR(del_th)*sin(th[0])*DToR(del_th);
+	// Note: Input of Sum_Phi_E(th_p,th_q), th_p/th_q are in units rad
+	double sum0 = Sum_Phi_E(th[0],th[0])*sin(th[0])*DToR(del_th)*sin(th[0])*DToR(del_th);
+	//double sum0 = 5.0307e-10; 
+	// Will give sum0 = 0 if Sum_Phi_E() use option true, since th[0],th[0] is always outside
+	// of acceptance phase space region.
+	//double sum0 = Sum_Phi_E(th[0],th[0],true)*sin(th[0])*DToR(del_th)*sin(th[0])*DToR(del_th);
+	//double sum0 = 1*sin(th[0])*DToR(del_th)*sin(th[0])*DToR(del_th);
 	for(int i = 0; i < div_th; i++){
 		cerr << endl << endl;
 		for(int j = 0; j < div_th; j++){
@@ -283,26 +290,33 @@ double Sum_Phi_E(double th_p, double th_q, bool cut){
 			//cerr << "th_p = " << RToD(th_p) << ",th_q = " << RToD(th_q) << endl;
 			//cerr << "phi_p = " << RToD(phi_p) << ",phi_q = " << RToD(phi_q) << ", phi = " << RToD(phi) << endl;
 			//cerr << "Relative Phi diff is " <<  abs(180-abs(RToD(phi_p)-RToD(phi_q))) << endl;
+			bool cut_a;
+			if(cut == true){
+				double theta[2] = {th_p, th_q};
+				double phi[2] = {phi_p, phi_q};
+				cut_a = Cut(theta, phi);
+			}
+			if(cut == false || (cut == true && cut_a == true)){
+				if( abs(180-abs(RToD(phi_p)-RToD(phi_q))) < max_phi_diff){
+					for(int k = 0; k < (int)div_E; k++){
+						E_p = k*del_E + del_E/2. ;
+						E_q = solve_e_positron(E_p);
 
-			if( abs(180-abs(RToD(phi_p)-RToD(phi_q))) < max_phi_diff){
-				for(int k = 0; k < div_E; k++){
-					E_p = k*del_E + del_E/2. ;
-					E_q = solve_e_positron(E_p);
-
-					if(E_p > min_E && E_p < e_gamma-min_E){
-					//cerr << "E_p = " << E_p << ",E_q = " << E_q << endl;
-					//cerr << "xsec = " << xs->xsec_full(E_p, E_q, th_p, th_q, phi) << endl << endl;
-					sum += xs->xsec_full(E_p, E_q, th_p, th_q, phi);
-				}
-	}}}}
+						if(E_p > min_E && E_p < e_gamma-min_E){
+						//cerr << "E_p = " << E_p << ",E_q = " << E_q << endl;
+						//cerr << "xsec = " << xs->xsec_full(E_p, E_q, th_p, th_q, phi) << endl << endl;
+						sum += xs->xsec_full(E_p, E_q, th_p, th_q, phi);
+					}
+	}}}}}
 	// Then multiply by unit volume
-	cerr << "del_E = " << del_E << ", del_phi = " << del_phi << endl; 
+	cerr << "del_E = " << del_E << ", del_phi = " << RToD(del_phi) << endl; 
 	sum *= pow(del_phi,2)*del_E;
 	//cerr << "del_phi = " << RToD(del_phi) << " , del_E = " << del_E << "sum is " << sum << endl;
 	return sum;
 }
 
 // Apply acceptance cut to range of theta, phi
+// Note: Inoput th[2], phi[2] using unit rad
 bool Cut(double th[2], double phi[2]){
 	bool c_polar = (th[0] > DToR(c_min_polar)) && (th[1] > DToR(c_min_polar));
 
