@@ -25,34 +25,49 @@ const double m_r = A * 931.5;
 // Below integrations based on observation that:
 // Cross section value sum over (phi_p,phi_q,E)
 // for fixed (Theta_p, Theta_q) times spherical angle
-// has contribution most coming from reagion that at
+// has contribution mostly coming from region which at
 // least one of Theta_p, Theta_q is very small.
 // So sum over (Theta_p,Theta_q) over 2 strips with one
 // of Theta_p,Theta_q very small should be a good approximation
 
-const double min_polar = 4;
-//const double max_polar = 90;
-//const double min_polar = 90;
+// min_polar: the lower bound of (theta_p,theta_q) strip region
+const double min_polar = 90;
+// max_polar: the upper bound of (theta_p,theta_q) strip region
 const double max_polar = 90;
+//const double min_polar = 4;
+//const double max_polar = 90;
+
+// max_polar_sqr: in addition to strip region, 
+// theta_p*theta_q < max_polar_sqr region is also included for xsec computation
 const double max_polar_sqr = 64;
-// Here phi_diff in range | 180+- max_phi_diff|
+
+// max_phi_diff:  phi in range 180-|phi_p-phi_q| < max_phi_diff
 const double max_phi_diff = 45;
-// Minimum energy for electron/positron, thus energy range (min_E , E_gamma-min_E)
+// min_E: Minimum energy for electron/positron, thus energy range (min_E , E_gamma-min_E)
 const double min_E = 0.511;
 
-// number of divisions.etc
-//const int div_th = 40;
-//const int div_th = 20;
+// number of divisions .etc
+// Note: For computation time:
+// if div_phi increased n times, computation time will be n^2 times
+// if div_E increased n times, compuatation time will be n times
+// For div_phi == 90, div_E == 20, approx. 1 min/event
+
+// del_th: intervals of theta
 const double del_th = 1;
 const int div_phi = 90;
 const int div_E = 20;
+// div_phi: number of phi divisions over 360 degrees
+// div_E: number of Energy divisions over 60 MeV
 
 //For given Theta_p, Theta_q, compute sum over Phi_p,Phi_q,E_p,E_q
 double Sum_Phi_E(double Theta_p, double Theta_q, bool cut = true);
 
 //Parameters relates to cut
-const double c_min_polar = 4;
+// c_min_polar: theta_p/theta_q smaller than c_min_polar will be ignored
+const double c_min_polar = 6;
+// c_max_t_th: t_theta_p/q (horizonal projection angle) larger than c_max_th will be ignored
 const double c_max_t_th = 15;
+// c_max_t_phi: t_phi_p/q (vertical projection angle) larger than c_max_phi will be ignored
 const double c_max_t_phi = 2.2;
 // Apply cuts for Sum_Phi_E()
 // Note: 1. Input takes rad unit angles
@@ -83,7 +98,7 @@ inline double RToD(double rad){
 // 3. Sum result of 2. by sin(theta_p)*dtheta_p*sin(theta_q)*dtheta_q, that results in
 //    total cross sections.
 
-// 4. Store data through step 2. 3.
+// 4. Store data and total cross section in step 2. 3 in data file.
 
 int main(int argc, char *argv[]){
 
@@ -110,15 +125,17 @@ int main(int argc, char *argv[]){
 	cerr << "Cut = " <<  Cut(c_th, c_phi) << endl;
  	*/
 
+	// FIXME:Why result time is not(larger) in unit s(econd) ?
 	clock_t t_s = clock();
 
 	// open file to store data
 	string tag;
 	cerr << "Please enter tag:" << endl;
 	cin >> tag;
-	string filename_p = "para.run"+tag+".dat";
-	string filename_d = "data.run"+tag+".dat";
+	string filename_p = "para."+tag+".dat";
+	string filename_d = "data."+tag+".dat";
 
+	// div_th: number of theta_p/q division (equals to max_polar/del_th)
 	int div_th = (int)(max_polar/del_th);
 	//cerr << "div_th = " << div_th << endl;
 	double th[div_th];
@@ -129,20 +146,17 @@ int main(int argc, char *argv[]){
 	     << setw(10) << min_polar << setw(10) << max_polar << setw(10) << div_th << setw(20) << 
 		(max_polar)/(double)div_th << endl << endl
 	     << setw(10) << "div_phi" << setw(20) << "phi_div(degree)" <<endl
-	     << setw(10) << div_phi << setw(20) << 360./(double)div_phi <<endl
 	     << setw(10) << "div_E" << setw(20) << "energy_div(MeV)" << endl
-	     << setw(10) << div_E << setw(20) << e_gamma/(double)div_E << endl
 	     << setw(10) << "Cut used:" << endl;
 	of_p.close();
 
-	// file storing data
+	// open file storing data
 	// format for each line: theta_p(degree) , theta_q(degree) , Sum_Phi_E(theta_p, theta_q)
 	ofstream of_d;
 	of_d.open(filename_d.c_str());
 	
 
 	// Note: th[i] in unit rad
-	//double del_th = DToR(max_polar)/(double)div_th;
 	for(int i = 0; (double)i*del_th < max_polar; i++){
 		th[i] = ((double)i+.5)*DToR(del_th);
 		cerr << "th[i] = " << RToD(th[i]) << endl;
@@ -159,13 +173,16 @@ int main(int argc, char *argv[]){
 			if( (!( th[i] >= DToR(min_polar) && th[j] >= DToR(min_polar) )) || 
 				th[i]*th[j] <= DToR(DToR(max_polar_sqr)) ){
 				//double sum = Sum_Phi_E(th[i], th[j])*sin(th[i])*DToR(del_th)*sin(th[j])*DToR(del_th);
-				double sum = 1*sin(th[i])*DToR(del_th)*sin(th[j])*DToR(del_th);
+				double sum = Sum_Phi_E(th[i], th[j],true)*sin(th[i])*DToR(del_th)*sin(th[j])*DToR(del_th);
+				//double sum = 1*sin(th[i])*DToR(del_th)*sin(th[j])*DToR(del_th);
 				//double sum = 1;
-				cerr << "(theta_p, theta_q) = (" << RToD(th[i]) << "," << RToD(th[j]) << ")" << " Sum = " << sum 
-				     << " ,Relative contribution"<< sum*100./sum0 << endl;
-				of_d << setw(10) << RToD(th[i]) << setw(10) << RToD(th[j]) <<  setprecision(5) << setw(20) << sum 
-				     << setw(20) << sum*100./sum0 << endl;
-				xsec += sum;
+				if(sum != 0){
+					cerr << "(theta_p, theta_q) = (" << RToD(th[i]) << "," << RToD(th[j]) << ")" << " ,Sum = " << sum 
+				     	<< " ,Relative contribution "<< sum*100./sum0 << endl;
+					of_d << setw(10) << RToD(th[i]) << setw(10) << RToD(th[j]) <<  setprecision(5) << setw(20) << sum 
+				     	<< setw(20) << sum*100./sum0 << endl;
+					xsec += sum;
+				}
 			}
 		}
 	}
@@ -223,7 +240,7 @@ inline double solve_e_positron(double E_p){
 
 
 
-// Note: input th_p and th_q is in unit 
+// Note: input th_p and th_q is in unit rad
 double Sum_Phi_E(double th_p, double th_q, bool cut){
 	// i: phi_p index
 	// j: phi_q index
