@@ -57,14 +57,16 @@ const double del_th = 1;
 // div_phi: number of phi divisions over 360 degrees
 const double div_phi = 360;
 // div_E: number of Energy divisions over 60 MeV
-const double div_E = 30;
+//const double div_E = 30;
+const double div_E = 60;
 
 //For given Theta_p, Theta_q, compute sum over Phi_p,Phi_q,E_p,E_q
 double Sum_Phi_E(double Theta_p, double Theta_q, bool cut = false);
 
 //Parameters relates to cut
 // c_min_polar: theta_p/theta_q smaller than c_min_polar will be ignored
-const double c_min_polar = 6;
+//const double c_min_polar = 6;
+const double c_min_polar = 5;
 // c_max_t_th: t_theta_p/q (horizonal projection angle) larger than c_max_th will be ignored
 const double c_max_t_th = 15;
 // c_max_t_phi: t_phi_p/q (vertical projection angle) larger than c_max_phi will be ignored
@@ -77,6 +79,10 @@ const double c_max_t_phi = 2.2;
 //          such that there is no big chuck 
 //          of solid angle block ignored(picked)
 bool Cut(double th[2], double phi[2]);
+
+// Cut_E(): Apply cut to energy such that only a portion of E_p/q in region [0,60] MeV will
+// be included in cross section computation
+bool Cut_E(double E_p);
 
 
 //Solve positron energy
@@ -291,6 +297,7 @@ double Sum_Phi_E(double th_p, double th_q, bool cut){
 			//cerr << "phi_p = " << RToD(phi_p) << ",phi_q = " << RToD(phi_q) << ", phi = " << RToD(phi) << endl;
 			//cerr << "Relative Phi diff is " <<  abs(180-abs(RToD(phi_p)-RToD(phi_q))) << endl;
 			bool cut_a;
+			bool cut_e;
 			if(cut == true){
 				double theta[2] = {th_p, th_q};
 				double phi[2] = {phi_p, phi_q};
@@ -302,12 +309,18 @@ double Sum_Phi_E(double th_p, double th_q, bool cut){
 						E_p = k*del_E + del_E/2. ;
 						E_q = solve_e_positron(E_p);
 
-						if(E_p > min_E && E_p < e_gamma-min_E){
+						if(cut == true)
+							cut_e = Cut_E(E_p);
+
+						if((cut == false && (E_p > min_E && E_p < e_gamma-min_E)) ||
+						    cut == true && cut_e == true)
+						{
 						//cerr << "E_p = " << E_p << ",E_q = " << E_q << endl;
 						//cerr << "xsec = " << xs->xsec_full(E_p, E_q, th_p, th_q, phi) << endl << endl;
 						sum += xs->xsec_full(E_p, E_q, th_p, th_q, phi);
+						}
 					}
-	}}}}}
+	}}}}
 	// Then multiply by unit volume
 	cerr << "del_E = " << del_E << ", del_phi = " << RToD(del_phi) << endl; 
 	sum *= pow(del_phi,2)*del_E;
@@ -349,4 +362,17 @@ bool Cut(double th[2], double phi[2]){
 	     << "Thus cut = " << cut;
 	*/
 	return cut;
+}
+
+// Cut_E input using unit MeV
+bool Cut_E(double E){
+	bool cut = (E > min_E && E < e_gamma-min_E);
+
+	//double del_e = 26;
+	double del_e = 12.5;
+	// only E < e_gamma/2.-del_e or E > e_gamma/2.+del_e will be included in computation
+	//bool cut_e = !(abs(E-e_gamma/2.) <= del_e);
+	bool cut_e = (abs(E-e_gamma/2.) <= del_e);
+
+	return cut && cut_e;
 }
