@@ -22,6 +22,9 @@ inline double ke_recoil(double e_gamma, double e_p, double e_q, double m_e,
 //Generate random number in [0,1]
 inline double randfloat(void);
 
+// argv[1]: Number of events to run
+// argv[2]: tag of output data file
+
 int main(int argc, char *argv[])
 {
     double pi = 3.14159265358979323846264338;
@@ -58,6 +61,8 @@ int main(int argc, char *argv[])
     fclose(rf);
     srandom(seed);
     strncpy(tag, "0", MAXSTRLEN);  // default tag
+
+    // Number of pairs to generate: 1 Million
     long events_to_do = 1000000;
     if (argc > 1) {
         events_to_do = atoi(argv[1]);
@@ -73,11 +78,20 @@ int main(int argc, char *argv[])
     long print_frequency = 1000;
 
     // experiment parameters
+    /*
     double central_energy = 30.;
     double max_percent = 40.;
     double min_percent = -40.;
     double max_eng = central_energy * (1. + max_percent / 100.);
     double min_eng = central_energy * (1. + min_percent / 100.);
+    */
+    /*
+    double max_eng = 59.;
+    double min_eng =  1.;
+    */
+    double max_eng = 42.;
+    double min_eng = 18.;
+
     // t_theta, t_phi: x and y projection angle
     // So only pairs wihtin a rectangular projection specified by max_t_theta and max_t_phi will be computed
     const double max_t_theta = 15 * deg;
@@ -87,11 +101,16 @@ int main(int argc, char *argv[])
     //In range [min_polar, max_polar]
     //And posible max_polar will be direction on the corners of rectangular specified by max_t_theta and max_t_phi
     double min_polar = 4. * deg;
-    double max_polar = atan(sqrt(tan(max_t_theta) * tan(max_t_theta)
-                                 + tan(max_t_phi) * tan(max_t_phi)));
+    double max_polar = atan(sqrt(tan(max_t_theta) * tan(max_t_theta) + tan(max_t_phi) * tan(max_t_phi)));
+    //double max_polar = 15. * deg;
+    //double max_polar = (4. + 1e-5) * deg;
+    //double max_polar = (5) * deg;
+
     double cos_min_polar = cos(min_polar);
     double rand_norm = cos_min_polar - cos(max_polar);
-    double maximum_xsec = 5.e-6;        // This needs to be determined
+
+    //double aximum_xsec = 5.e-6;        // For xsec without factor, this needs to be determined
+    double maximum_xsec = 1.3e3;        // For xsec with factor
     // checked for min_polar = 4 deg
 
     ifstream runin;
@@ -111,9 +130,9 @@ int main(int argc, char *argv[])
 
     fprintf(stdfp, "Run %d: Events to do = %d\n", runno, events_to_do);
     fprintf(stdfp, "Run parameters:\n");
-    fprintf(stdfp, "Central Energy = %.2d MeV\n", central_energy);
-    fprintf(stdfp, "Percent acceptance range = %.1f%% to %.1f%%\n",
-            min_percent, max_percent);
+    //fprintf(stdfp, "Central Energy = %.2d MeV\n", central_energy);
+    //fprintf(stdfp, "Percent acceptance range = %.1f%% to %.1f%%\n",
+    //        min_percent, max_percent);
     fprintf(stdfp, "Maximum horizontal angle = %.2f degrees\n",
             max_t_theta / deg);
     fprintf(stdfp, "Maximum vertical angle = %.2f degrees\n",
@@ -136,7 +155,8 @@ int main(int argc, char *argv[])
         loops++;
         // choose random energies and angles for electron and positron
         // choose electron angles within spectrometer acceptance
-        do {
+        //do
+	{
             double cos_polar = cos_min_polar - randfloat() * rand_norm;
             th_p = acos(cos_polar);
             phi_p_actual = randfloat() * 360. * deg;
@@ -145,10 +165,13 @@ int main(int argc, char *argv[])
             double zz = cos_polar;
             t_theta_p = atan(xx / zz);
             t_phi_p = atan(yy / zz);
-        } while (abs(t_theta_p) > max_t_theta
-                 || abs(t_phi_p) > max_t_phi || th_p < min_polar);
+        }
+	//while (abs(t_theta_p) > max_t_theta || abs(t_phi_p) > max_t_phi || th_p < min_polar);
+	//while( th_p < min_polar || th_p > max_polar );
+
         // choose positron angles within spectrometer acceptance
-        do {
+        //do
+	{
             double cos_polar = cos_min_polar - randfloat() * rand_norm;
             th_q = acos(cos_polar);
             phi_q_actual = randfloat() * 360. * deg;
@@ -157,8 +180,16 @@ int main(int argc, char *argv[])
             double zz = cos_polar;
             t_theta_q = atan(xx / zz);
             t_phi_q = atan(yy / zz);
-        } while (abs(t_theta_q) > max_t_theta
-                 || abs(t_phi_q) > max_t_phi || th_q < min_polar);
+        }
+	//while (abs(t_theta_q) > max_t_theta || abs(t_phi_q) > max_t_phi || th_q < min_polar);
+	//while( th_q < min_polar || th_q > max_polar );
+
+	//cerr << "Event " << total_count << ", th_p = " << th_p/deg << ", th_q = " << th_q/deg << endl; 
+
+	if( th_p < min_polar || th_q < min_polar || th_p > max_polar || th_q > max_polar){
+		cerr << "Wrong theta values, return" << endl;
+		break;
+	}
 
         phi_q = phi_q_actual - phi_p_actual;
 
@@ -167,16 +198,24 @@ int main(int argc, char *argv[])
             phi_q += 360. * deg;
 
         // choose electron energy within spectrometer acceptance
-        double ke_p = min_eng + (max_eng - min_eng) * randfloat();
-        e_p = ke_p + m_e;
+        //double ke_p = min_eng + (max_eng - min_eng) * randfloat();
+	// use e_p rather than ke_p uniformly from 18 MeV to 42 MeV
+        e_p = min_eng + (max_eng - min_eng) * randfloat();
+        double ke_p = e_p - m_e;
+
+        //e_p = ke_p + m_e;
         // solve for allowed positron energy
         double e_q =
             solve_e_positron(e_gamma, m_e, m_r, e_p, th_p, th_q, phi_q);
 
         // calculate the cross section
-        double xsec = xs->xsec_full(e_p, e_q, th_p, th_q, phi_q);
+        //double xsec = xs->xsec_full(e_p, e_q, th_p, th_q, phi_q);
+	// Including factor theorist privides.
+        double xsec = 21.283*(pow(e_p,2.)*pow(e_q,2.)/pow(m_e,4.))*xs->xsec_full(e_p, e_q, th_p, th_q, phi_q);
 
+	// Following code is better to activate after maximum xsec is determined
         double ratio = xsec / maximum_xsec;
+	//cerr << "ratio is " << ratio*100. << "%" << endl;
         if (ratio > 1.) {
             fprintf(stdfp,
                     "Cross Section = %.8g > maximum cross section = %.8g\n",
@@ -187,6 +226,7 @@ int main(int argc, char *argv[])
         }
         if (randfloat() > ratio)
             continue;
+	// Above code//
 
         // write the event to a file
         // all angles are printed in unit degrees
@@ -338,4 +378,3 @@ double randfloat(void)
     double r = random() / double (RAND_MAX);
     return r;
 }
-// vim:expandtab softtabstop=4 shiftwidth=4 tabstop=4:
