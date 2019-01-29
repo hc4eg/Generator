@@ -155,7 +155,7 @@ int main(int argc, char *argv[])
         loops++;
         // choose random energies and angles for electron and positron
         // choose electron angles within spectrometer acceptance
-        //do
+        do
 	{
             double cos_polar = cos_min_polar - randfloat() * rand_norm;
             th_p = acos(cos_polar);
@@ -166,11 +166,11 @@ int main(int argc, char *argv[])
             t_theta_p = atan(xx / zz);
             t_phi_p = atan(yy / zz);
         }
-	//while (abs(t_theta_p) > max_t_theta || abs(t_phi_p) > max_t_phi || th_p < min_polar);
+	while (abs(t_theta_p) > max_t_theta || abs(t_phi_p) > max_t_phi || th_p < min_polar);
 	//while( th_p < min_polar || th_p > max_polar );
 
         // choose positron angles within spectrometer acceptance
-        //do
+        do
 	{
             double cos_polar = cos_min_polar - randfloat() * rand_norm;
             th_q = acos(cos_polar);
@@ -181,7 +181,7 @@ int main(int argc, char *argv[])
             t_theta_q = atan(xx / zz);
             t_phi_q = atan(yy / zz);
         }
-	//while (abs(t_theta_q) > max_t_theta || abs(t_phi_q) > max_t_phi || th_q < min_polar);
+	while (abs(t_theta_q) > max_t_theta || abs(t_phi_q) > max_t_phi || th_q < min_polar);
 	//while( th_q < min_polar || th_q > max_polar );
 
 	//cerr << "Event " << total_count << ", th_p = " << th_p/deg << ", th_q = " << th_q/deg << endl; 
