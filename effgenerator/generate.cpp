@@ -149,7 +149,7 @@ int main(int argc, char *argv[])
     bool b_table = true;
     if(b_table){
 	// Ask for read pre.*.dat file to run simulation or start from scratch:
-	cerr << "Read pre.*.data files? (Yy/Nn) ? " << endl;
+	cerr << "Read exsisting pre.*.data files? (Yy/Nn) ? " << endl;
 	string s_read;
 	cin >> s_read;
 	bool b_read = ( ( s_read == "y" || s_read == "Y") ? true : false );
@@ -171,16 +171,17 @@ if(!b_read){
 	bool b_pre_only = true;
 
 	// Number of regions divided from min_polar to max_polar
-	int Nreg = 11;
+	//int Nreg = 110;
+	int Nreg = 22;
 	double th_p_min[Nreg], th_p_max[Nreg], th_q_min[Nreg], th_q_max[Nreg];
 	// max xsec values in each region, and their relative max xsec values
 	double xsec_max[Nreg][Nreg];
-	// Number of divisions in each p/q dimension when compute xsec_tot in each region
+
+	// Number of divisions in each p/q dimension when Area[][] in each region
 	//double N_th_div = 100;
 	//double N_phi_div = 180;
 	double N_th_div = 25;
 	double N_phi_div = 45;
-
 	// In order to find area of cut region, which is hard to compute analytically, use numerical integration to compute Area
 	double Area[Nreg][Nreg];
 	double Area_max = 0;
@@ -191,7 +192,7 @@ if(!b_read){
 			Area[i][j] = 0;
 			N_xsec[i][j] = 0;
 	}
-	double N_xsec_max = 1e5; // N_xsec will scaled by N_xsec_max 
+	double N_xsec_max = 1e6; // N_xsec will scaled by N_xsec_max 
 
 	// Compute th_p_min, th_p_max, th_q_min, th_q_max:
 	for(int i = 0; i < Nreg; i++ ){
@@ -201,8 +202,76 @@ if(!b_read){
 		th_q_max[i] = min_polar[1] + (double)(i+1)*(max_polar[1] - min_polar[1])/((double)Nreg);
 	}
 
+
+	// Compute max and total cross section in each section:
+	double xsec_tot[Nreg][Nreg];
+	for(int i = 0; i < Nreg; i++)
+		for(int j = 0; j < Nreg; j++){
+
+
+			// N_loop: how many events to generate in order to find xsec_max and xsec_tot in each region
+			// FIXME: the larger N_loop the better the precision of xsec_max and xsec_tot, needs larger values below
+			//int N_loop = 1000;
+			int N_loop = 1e4;
+			// generate sphericla uniform angles for p,q
+			double th[2];
+			double ph[2];
+			double phi;
+			double cos_th[2];
+			double energy[2];
+			double xsec;
+			xsec_tot[i][j] = 0;
+			xsec_max[i][j] = 0;
+
+			// FIXME: Since xsec_max always lies in th_p_min and th_q_min for the region(needs to be verified)
+			// finding xsec_max on under this condition will make xsec_max finding much quicker
+			for(int l = 0; l < N_loop; l++){
+
+				do{
+					th[0] = th_p_min[i];
+					th[1] = th_q_min[j];
+					for(int k = 0; k < 2; k++){ ph[k] = randfloat()*360.*deg; }
+				}while( !Cut(th, ph) );
+				// FIXME: for above line: since for finding xsec_max in certain region, th[0/1] using th_p/q_min instead of 
+				// all possible theta for the region, it can be all being rejected by Cut(th,ph) in some cases.
+					phi = ph[1] - ph[0];
+					if(phi < 0.) phi+=360.*deg;
+				//cerr << "In xsec_max finding: th_p = " << th[0] << ", th_q = " << th[1] << ", phi = " << phi << endl;
+
+				energy[0] = min_eng + (max_eng - min_eng)*randfloat();
+				//energy[1] = e_gamma - energy[0];
+				energy[1] = solve_e_positron(e_gamma, m_e, m_r, energy[0], th[0], th[1], phi);
+
+				xsec = 21.283*(pow(energy[0]*energy[1],2.)/pow(m_e,4.))*xs->xsec_full(energy[0], energy[1], th[0], th[1], phi);
+				if( xsec_max[i][j] < xsec ) xsec_max[i][j] = xsec;
+			}
+
+			for(int l = 0; l < N_loop; l++){
+				do{
+					cos_th[0] = cos(th_p_min[i])-randfloat()*(cos(th_p_min[i]) - cos(th_p_max[i]));
+					cos_th[1] = cos(th_q_min[j])-randfloat()*(cos(th_q_min[j]) - cos(th_q_max[j]));
+					for(int k = 0; k < 2; k++){
+						th[k] = acos( cos_th[k] );
+						ph[k] = randfloat()*360.*deg;
+					}
+				}while( !Cut(th,ph) );
+
+				phi = ph[1]-ph[0];
+				if(phi < 0.) phi+=360.*deg;
+				energy[0] = min_eng + (max_eng - min_eng)*randfloat();
+				//energy[1] = e_gamma - energy[0];
+				energy[1] = solve_e_positron(e_gamma, m_e, m_r, energy[0], th[0], th[1], phi);
+
+				xsec = 21.283*(pow(energy[0]*energy[1],2.)/pow(m_e,4.))*xs->xsec_full(energy[0], energy[1], th[0], th[1], phi);
+				xsec_tot[i][j] += xsec;
+			}
+		cerr << "Pre-run with index [i,j] = [" << i << "," << j << "] finished." << endl; 
+		cerr << "Xsec_max[" << i << "," << j  << "] = " << xsec_max[i][j] << ", xsec_tot = " << xsec_tot[i][j] << endl;
+	}
+
+
 	// Compute Solid angle Area in each region:
-	// FIXME: Important: When creating table, when finding xsec_max in each bin, we're generating same number of random pairs regardless of solid angle areaof the portion is.
+	// FIXME: Important: When creating table, when finding xsec_max in each bin, we're generating same number of random pairs regardless of solid angle area of the portion is.
 	(*os) << min_eng << " " << max_eng << endl;
 
 	for(int i = 0; i < Nreg; i++ ){
@@ -245,67 +314,10 @@ if(!b_read){
 		}
 	}
 	cerr << "Maximum Area is " << Area_max << endl;
-
-	// Compute max and total cross section in each section:
-	double xsec_tot[Nreg][Nreg];
-	for(int i = 0; i < Nreg; i++)
-		for(int j = 0; j < Nreg; j++){
-
-
-			// N_loop: how many events to generate in order to find xsec_max and xsec_tot in each region
-			// FIXME: the larger N_loop the better the precision of xsec_max and xsec_tot, needs larger values below
-			int N_loop = 10000;
-			// generate sphericla uniform angles for p,q
-			double th[2];
-			double ph[2];
-			double phi;
-			double cos_th[2];
-			double energy[2];
-			double xsec;
-			xsec_tot[i][j] = 0;
-			xsec_max[i][j] = 0;
-
-			// FIXME: Since xsec_max always lies in th_p_min and th_q_min for the region(needs to be verified)
-			// finding xsec_max on under this condition will make xsec_max finding much quicker
-			for(int l = 0; l < N_loop; l++){
-
-				do{
-					th[0] = th_p_min[i];
-					th[1] = th_q_min[j];
-					for(int k = 0; k < 2; k++){ ph[k] = randfloat()*360.*deg; }
-				}while( !Cut(th, ph) );
-					phi = ph[1] - ph[0];
-					if(phi < 0.) phi+=360.*deg;
-				energy[0] = min_eng + (max_eng - min_eng)*randfloat();
-				//energy[1] = e_gamma - energy[0];
-				energy[1] = solve_e_positron(e_gamma, m_e, m_r, energy[0], th[0], th[1], phi);
-
-				xsec = 21.283*(pow(energy[0]*energy[1],2.)/pow(m_e,4.))*xs->xsec_full(energy[0], energy[1], th[0], th[1], phi);
-				if( xsec_max[i][j] < xsec ) xsec_max[i][j] = xsec;
-			}
-
-			for(int l = 0; l < N_loop; l++){
-				do{
-					cos_th[0] = cos(th_p_min[i])-randfloat()*(cos(th_p_min[i]) - cos(th_p_max[i]));
-					cos_th[1] = cos(th_q_min[j])-randfloat()*(cos(th_q_min[j]) - cos(th_q_max[j]));
-					for(int k = 0; k < 2; k++){
-						th[k] = acos( cos_th[k] );
-						ph[k] = randfloat()*360.*deg;
-					}
-				}while( !Cut(th,ph) );
-
-				phi = ph[1]-ph[0];
-				if(phi < 0.) phi+=360.*deg;
-				energy[0] = min_eng + (max_eng - min_eng)*randfloat();
-				//energy[1] = e_gamma - energy[0];
-				energy[1] = solve_e_positron(e_gamma, m_e, m_r, energy[0], th[0], th[1], phi);
-
-				xsec = 21.283*(pow(energy[0]*energy[1],2.)/pow(m_e,4.))*xs->xsec_full(energy[0], energy[1], th[0], th[1], phi);
-				xsec_tot[i][j] += xsec;
-			}
-		cerr << "Pre-run with index [i,j] = " << i << "," << j << "] finished." << endl; 
-	}
 	
+
+
+
 	// FIXME: Since the nature of rescaling computation of N_xsec below,
 	// ofstream* os print data is delayed after all xsec_tot[][] is computed
 	// How to circumvent this?
@@ -339,11 +351,12 @@ if(!b_read){
 		for(int j = 0; j < Nreg; j++){
 		(*os) << setw(10) << th_p_min[i]/deg << setw(10) << th_p_max[i]/deg 
 		      << setw(10) << th_q_min[j]/deg << setw(10) << th_q_max[j]/deg
-		      << setw(15) << xsec_max[i][j]  << setw(15) << N_xsec[i][j] << endl;
+		      << setw(15) << xsec_max[i][j]  << setw(15) << N_xsec[i][j] <<
+		      setw(15) << xsec_tot[i][j] <<  endl;
 	}
 	os->close();
 
-if(!b_pre_only){
+if(!b_pre_only){ // Not only generate pre.*.dat file, but also use its result to generate pairs
 	string pfilename = "pair." + otag + ".dat";
 	os->open( pfilename.c_str() );
 	
@@ -475,7 +488,8 @@ else{
 
 
 	// Step 3: open pair.*.dat file, generate random pairs and write into pair.*.dat file
-	cerr << "Which run? " << endl;
+	cerr << "Type run number of the current run:" << endl;
+	cerr <<  "(it will add to tag of pair.*.dat file to distinguish exsisting pair.*.dat file) " << endl;
 	string runNO;
 	cin >> runNO;
 	//char* runNO_char = itoa(runNO);
