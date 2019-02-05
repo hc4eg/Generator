@@ -181,7 +181,10 @@ if(!b_read){
 	//double N_th_div = 100;
 	//double N_phi_div = 180;
 	double N_th_div = 25;
-	double N_phi_div = 45;
+	//double N_phi_div = 45;
+	// Note: when cut applied, phi at edge will span from ~-7.8 to 7.8 degree, if  divide 360 degrees by 45, 8 degrees per
+	// division is too crude in this case, and leads to error in Area[i][j] computation.
+	double N_phi_div = 360;
 	// In order to find area of cut region, which is hard to compute analytically, use numerical integration to compute Area
 	double Area[Nreg][Nreg];
 	double Area_max = 0;
